@@ -19,7 +19,7 @@ const DATA_API = {
     label: "מדד חברתי-כלכלי",
   },
   BASE_URL: "https://data.gov.il/api/3/action/datastore_search",
-  PAGE_SIZE: 500,
+  PAGE_SIZE: 10000,
 };
 
 // נפות -> מחוזות
@@ -162,14 +162,12 @@ async function loadData(onStatus) {
       if (onStatus) onStatus(msg);
     };
 
-    status("טוען אוכלוסייה לפי גיל...");
-    const popRecords = await fetchAll(DATA_API.POPULATION.id);
-
-    status("טוען נתוני מפקד 2022...");
-    const censusRecords = await fetchCensus2022();
-
-    status("טוען מדד חברתי-כלכלי...");
-    const socioRecords = await fetchSocioEconomic();
+    status("טוען נתונים מ-3 מקורות במקביל...");
+    const [popRecords, censusRecords, socioRecords] = await Promise.all([
+      fetchAll(DATA_API.POPULATION.id),
+      fetchCensus2022(),
+      fetchSocioEconomic(),
+    ]);
 
     status("ממזג ומעבד נתונים...");
     YISHUVIM = mergeAndProcess(popRecords, censusRecords, socioRecords);
