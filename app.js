@@ -6,16 +6,15 @@ class YishuvRanker {
   constructor() {
     this.screens = {};
     this.currentScreen = 'home';
-    this.battleConfig = { count: 16, district: 'הכל', type: 'הכל' };
-    this.battleState = null;
     this.leaderboard = {
       sortBy: 'population', sortDir: 'desc',
       district: 'הכל', type: 'הכל', search: '',
-      filters: {},  // {fieldId: {min, max} or {value}}
+      filters: {},
     };
     this.filtersOpen = false;
     this.selectMode = false;
     this.selectedCodes = new Set();
+    this.favorites = new Set(JSON.parse(localStorage.getItem('yishuv_favorites') || '[]'));
     this.dataReady = false;
     this.init();
   }
@@ -45,6 +44,7 @@ class YishuvRanker {
         ` · ${withSocio} עם מדד חברתי-כלכלי`;
       if (loadingBar) loadingBar.classList.remove('active');
       this.enableButtons(true);
+      this.updateFavBadge();
     } catch (err) {
       console.error(err);
       if (heroSub) heroSub.textContent = 'שגיאה בטעינת נתונים. בדקו חיבור אינטרנט ונסו לרענן.';
@@ -54,7 +54,7 @@ class YishuvRanker {
   }
 
   enableButtons(enabled) {
-    ['btn-battle-mode', 'btn-leaderboard-mode'].forEach(id => {
+    ['btn-leaderboard-mode', 'btn-favorites-mode'].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) {
         btn.style.opacity = enabled ? '1' : '0.5';
@@ -66,10 +66,8 @@ class YishuvRanker {
   cacheElements() {
     this.screens = {
       home: document.getElementById('screen-home'),
-      setup: document.getElementById('screen-setup'),
-      battle: document.getElementById('screen-battle'),
-      results: document.getElementById('screen-results'),
       leaderboard: document.getElementById('screen-leaderboard'),
+      favorites: document.getElementById('screen-favorites'),
     };
     this.headerTitle = document.getElementById('header-title-text');
     this.headerBack = document.getElementById('header-back');
@@ -78,40 +76,16 @@ class YishuvRanker {
   bindEvents() {
     this.headerBack.addEventListener('click', () => this.goBack());
 
-    document.getElementById('btn-battle-mode').addEventListener('click', () => {
-      if (!this.dataReady) return;
-      this.showScreen('setup');
-    });
     document.getElementById('btn-leaderboard-mode').addEventListener('click', () => {
       if (!this.dataReady) return;
       this.renderLeaderboard();
       this.showScreen('leaderboard');
     });
 
-    document.getElementById('start-battle').addEventListener('click', () => this.startBattle());
-
-    document.querySelectorAll('.count-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('.count-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.battleConfig.count = parseInt(chip.dataset.count);
-      });
-    });
-
-    document.querySelectorAll('#setup-districts .filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('#setup-districts .filter-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.battleConfig.district = chip.dataset.value;
-      });
-    });
-
-    document.querySelectorAll('#setup-types .filter-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        document.querySelectorAll('#setup-types .filter-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        this.battleConfig.type = chip.dataset.value;
-      });
+    document.getElementById('btn-favorites-mode').addEventListener('click', () => {
+      if (!this.dataReady) return;
+      this.renderFavorites();
+      this.showScreen('favorites');
     });
 
     document.getElementById('lb-search').addEventListener('input', (e) => {
@@ -119,28 +93,10 @@ class YishuvRanker {
       this.renderLeaderboardList();
     });
 
-    document.querySelectorAll('.sort-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const sortBy = btn.dataset.sort;
-        if (this.leaderboard.sortBy === sortBy) {
-          this.leaderboard.sortDir = this.leaderboard.sortDir === 'desc' ? 'asc' : 'desc';
-        } else {
-          this.leaderboard.sortBy = sortBy;
-          this.leaderboard.sortDir = 'desc';
-        }
-        this.updateSortButtons();
-        this.renderLeaderboardList();
-      });
-    });
-
     document.getElementById('modal-overlay').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) this.closeModal();
     });
     document.getElementById('modal-close-btn').addEventListener('click', () => this.closeModal());
-
-    document.getElementById('btn-play-again').addEventListener('click', () => this.showScreen('setup'));
-    document.getElementById('btn-share').addEventListener('click', () => this.shareResults());
-    document.getElementById('btn-home').addEventListener('click', () => this.showScreen('home'));
 
     // Toggle filters panel
     document.getElementById('toggle-filters-btn').addEventListener('click', () => {
@@ -179,16 +135,14 @@ class YishuvRanker {
   // Navigation
   // ==========================================
   showScreen(name) {
-    Object.values(this.screens).forEach(s => s.classList.remove('active'));
-    this.screens[name].classList.add('active');
+    Object.values(this.screens).forEach(s => { if (s) s.classList.remove('active'); });
+    if (this.screens[name]) this.screens[name].classList.add('active');
     this.currentScreen = name;
 
     const titles = {
       home: '🏘️ מדרג הישובים',
-      setup: '⚙️ הגדרות משחק',
-      battle: '⚔️ מי עדיף?',
-      results: '🏆 התוצאות',
       leaderboard: '📊 טבלת ישובים',
+      favorites: '⭐ מועדפים',
     };
     this.headerTitle.textContent = titles[name] || '';
     this.headerBack.classList.toggle('hidden', name === 'home');
@@ -196,179 +150,93 @@ class YishuvRanker {
   }
 
   goBack() {
-    const backMap = { setup: 'home', battle: 'setup', results: 'home', leaderboard: 'home' };
-    this.showScreen(backMap[this.currentScreen] || 'home');
+    this.showScreen('home');
   }
 
   // ==========================================
-  // Battle Mode
+  // Favorites
   // ==========================================
-  startBattle() {
-    let pool = [...YISHUVIM];
-    if (this.battleConfig.district !== 'הכל') pool = pool.filter(y => y.district === this.battleConfig.district);
-    if (this.battleConfig.type !== 'הכל') pool = pool.filter(y => y.type === this.battleConfig.type);
-    pool = this.shuffle(pool);
-    const count = Math.min(this.battleConfig.count, pool.length);
-    if (count < 2) { alert('אין מספיק ישובים להשוואה. נסו לשנות את הסינון.'); return; }
-    const selected = pool.slice(0, count);
-
-    this.battleState = {
-      items: selected, result: [],
-      sortArr: selected.map((_, i) => i),
-      pending: null,
-      totalEstimated: Math.ceil(count * Math.log2(count)),
-      completedComparisons: 0,
-      mergeQueue: [], mergeResults: [],
-    };
-    this.initMergeSort();
-    this.showScreen('battle');
-    this.renderBattle();
+  saveFavorites() {
+    localStorage.setItem('yishuv_favorites', JSON.stringify([...this.favorites]));
+    this.updateFavBadge();
   }
 
-  initMergeSort() {
-    const state = this.battleState;
-    const n = state.items.length;
-    state.mergeQueue = [];
-    state.mergeResults = new Array(n);
-    for (let i = 0; i < n; i++) state.mergeResults[i] = i;
-    this.buildMergeSteps(0, n - 1);
-    state.currentMerge = null;
-    this.nextMergeStep();
+  toggleFavorite(code) {
+    if (this.favorites.has(code)) this.favorites.delete(code);
+    else this.favorites.add(code);
+    this.saveFavorites();
   }
 
-  buildMergeSteps(left, right) {
-    if (left >= right) return;
-    const mid = Math.floor((left + right) / 2);
-    this.buildMergeSteps(left, mid);
-    this.buildMergeSteps(mid + 1, right);
-    this.battleState.mergeQueue.push({ left, mid, right });
+  isFavorite(code) {
+    return this.favorites.has(code);
   }
 
-  nextMergeStep() {
-    const state = this.battleState;
-    if (state.currentMerge && state.currentMerge.done) {
-      const cm = state.currentMerge;
-      for (let i = 0; i < cm.merged.length; i++) state.mergeResults[cm.left + i] = cm.merged[i];
+  updateFavBadge() {
+    const badge = document.getElementById('fav-count-badge');
+    if (badge) {
+      badge.textContent = this.favorites.size;
+      badge.style.display = this.favorites.size > 0 ? 'inline-flex' : 'none';
     }
-    if (state.mergeQueue.length === 0) {
-      this.battleState.result = state.mergeResults.map(i => state.items[i]);
-      this.showResults();
+  }
+
+  renderFavorites() {
+    const container = document.getElementById('favorites-list');
+    const favItems = YISHUVIM.filter(y => this.favorites.has(y.code));
+
+    if (favItems.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⭐</div>
+          <p>אין מועדפים עדיין</p>
+          <p style="font-size:0.85rem;color:var(--text-muted)">לחצו על הכוכב ליד שם הישוב בטבלה או בכרטיס הפרטים</p>
+        </div>
+      `;
       return;
     }
-    const step = state.mergeQueue.shift();
-    state.currentMerge = {
-      left: step.left,
-      leftArr: state.mergeResults.slice(step.left, step.mid + 1),
-      rightArr: state.mergeResults.slice(step.mid + 1, step.right + 1),
-      li: 0, ri: 0, merged: [], done: false,
-    };
-    this.nextComparison();
-  }
 
-  nextComparison() {
-    const state = this.battleState;
-    const cm = state.currentMerge;
-    if (!cm) return;
-    if (cm.li >= cm.leftArr.length) { cm.merged.push(...cm.rightArr.slice(cm.ri)); cm.done = true; this.nextMergeStep(); return; }
-    if (cm.ri >= cm.rightArr.length) { cm.merged.push(...cm.leftArr.slice(cm.li)); cm.done = true; this.nextMergeStep(); return; }
-    state.pending = { a: cm.leftArr[cm.li], b: cm.rightArr[cm.ri] };
-    this.renderBattle();
-  }
+    const countEl = document.getElementById('fav-result-count');
+    if (countEl) countEl.textContent = `${favItems.length} מועדפים`;
 
-  chooseSide(winner) {
-    const state = this.battleState;
-    const cm = state.currentMerge;
-    if (!state.pending) return;
-    state.completedComparisons++;
-    if (winner === 'a') { cm.merged.push(cm.leftArr[cm.li]); cm.li++; }
-    else { cm.merged.push(cm.rightArr[cm.ri]); cm.ri++; }
-    this.nextComparison();
-  }
+    container.innerHTML = favItems.map((item) => {
+      const origIndex = YISHUVIM.indexOf(item);
+      const extraInfo = [];
+      if (item.socioCluster) extraInfo.push(`📊 ${item.socioCluster}/10`);
+      if (item.medianWage) extraInfo.push(`💰 ₪${this.formatNumber(item.medianWage)}`);
 
-  skipComparison() { this.chooseSide(Math.random() < 0.5 ? 'a' : 'b'); }
-
-  renderBattleCard(item) {
-    const stats = [
-      { label: '👥 אוכלוסייה', val: this.formatNumber(item.population) },
-      { label: '📍 מחוז', val: item.district },
-      { label: '👶 צעירים', val: item.youthPercent + '%' },
-      { label: '👴 קשישים', val: item.elderPercent + '%' },
-    ];
-    if (item.medianWage) stats.push({ label: '💰 שכר חציוני', val: '₪' + this.formatNumber(item.medianWage) });
-    if (item.socioCluster) stats.push({ label: '📊 אשכול', val: item.socioCluster + '/10' });
-    if (item.academicPct) stats.push({ label: '🎓 אקדמאים', val: item.academicPct + '%' });
-
-    return `
-      <div class="city-name">${item.name}</div>
-      <div class="city-stats">
-        ${stats.map(s => `<div class="stat-row"><span class="stat-label">${s.label}</span><span class="stat-value">${s.val}</span></div>`).join('')}
-      </div>
-      <span class="city-type">${item.type}</span>
-    `;
-  }
-
-  renderBattle() {
-    const state = this.battleState;
-    if (!state || !state.pending) return;
-    const a = state.items[state.pending.a];
-    const b = state.items[state.pending.b];
-    const progress = Math.min(100, (state.completedComparisons / state.totalEstimated) * 100);
-
-    document.getElementById('battle-content').innerHTML = `
-      <div class="battle-progress">
-        <div class="progress-bar-container"><div class="progress-bar" style="width: ${progress}%"></div></div>
-        <div class="progress-text">השוואה ${state.completedComparisons + 1} מתוך ~${state.totalEstimated}</div>
-      </div>
-      <div class="battle-hint">🤔 איפה הייתם מעדיפים לגור?</div>
-      <div class="battle-vs">
-        <div class="battle-card" onclick="app.chooseSide('a')" style="animation: slideInRight 0.3s ease">
-          ${this.renderBattleCard(a)}
-        </div>
-        <div class="vs-badge">VS</div>
-        <div class="battle-card" onclick="app.chooseSide('b')" style="animation: slideInLeft 0.3s ease">
-          ${this.renderBattleCard(b)}
-        </div>
-      </div>
-      <button class="skip-btn" onclick="app.skipComparison()">⏭️ דלג (בחירה אקראית)</button>
-    `;
-  }
-
-  // ==========================================
-  // Results
-  // ==========================================
-  showResults() { this.showScreen('results'); this.renderResults(); }
-
-  renderResults() {
-    const results = this.battleState.result;
-    document.getElementById('results-list').innerHTML = results.map((item, i) => {
-      let cls = '', medalEmoji = '';
-      if (i === 0) { cls = 'gold'; medalEmoji = '🥇'; }
-      else if (i === 1) { cls = 'silver'; medalEmoji = '🥈'; }
-      else if (i === 2) { cls = 'bronze'; medalEmoji = '🥉'; }
       return `
-        <div class="result-item ${cls}" onclick="app.showDetail(${YISHUVIM.indexOf(item)})" style="animation-delay: ${i * 0.05}s">
-          <div class="result-rank">${medalEmoji || (i + 1)}</div>
-          <div class="result-info">
-            <div class="result-name">${item.name}</div>
-            <div class="result-desc">${item.district} · ${item.type}</div>
+        <div class="leaderboard-item fav-item">
+          <button class="fav-star active" onclick="event.stopPropagation(); app.removeFavoriteAndRefresh('${item.code}')" title="הסר ממועדפים">★</button>
+          <div class="lb-info" onclick="app.showDetail(${origIndex})">
+            <div class="lb-name">${item.name}</div>
+            <div class="lb-meta">
+              <span>${item.district}</span><span>·</span><span>${item.type}</span>
+              <span>·</span><span>👥 ${this.formatNumber(item.population)}</span>
+              ${extraInfo.length ? '<span>·</span><span>' + extraInfo.join(' ') + '</span>' : ''}
+            </div>
           </div>
-          <div class="result-pop">${this.formatNumber(item.population)}</div>
         </div>
       `;
     }).join('');
-    document.getElementById('winner-name').textContent = results[0]?.name || '';
+
+    // Export all favorites button
+    container.innerHTML += `
+      <button class="export-favs-btn" onclick="app.exportFavoritesCSV()">
+        📥 ייצוא ${favItems.length} מועדפים ל-Excel
+      </button>
+    `;
   }
 
-  shareResults() {
-    const results = this.battleState.result;
-    const text = `🏘️ הדירוג שלי - מדרג הישובים:\n\n` +
-      results.slice(0, 10).map((item, i) => {
-        const medals = ['🥇', '🥈', '🥉'];
-        return `${medals[i] || (i + 1) + '.'} ${item.name}`;
-      }).join('\n') + `\n\nנוצר עם מדרג הישובים 🇮🇱`;
-    if (navigator.share) navigator.share({ title: 'מדרג הישובים', text });
-    else if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => alert('הדירוג הועתק ללוח! 📋'));
-    else alert(text);
+  removeFavoriteAndRefresh(code) {
+    this.favorites.delete(code);
+    this.saveFavorites();
+    this.renderFavorites();
+  }
+
+  exportFavoritesCSV() {
+    const prev = this.selectedCodes;
+    this.selectedCodes = new Set([...this.favorites]);
+    this.exportCSV();
+    this.selectedCodes = prev;
   }
 
   // ==========================================
@@ -562,8 +430,6 @@ class YishuvRanker {
     if (this.leaderboard.district !== 'הכל') items = items.filter(y => y.district === this.leaderboard.district);
     if (this.leaderboard.type !== 'הכל') items = items.filter(y => y.type === this.leaderboard.type);
     if (this.leaderboard.search) items = items.filter(y => y.name.includes(this.leaderboard.search));
-
-    // Apply advanced filters
     items = this.applyFilters(items);
 
     const sortKey = this.leaderboard.sortBy;
@@ -587,7 +453,6 @@ class YishuvRanker {
 
     const cat = RANKING_CATEGORIES.find(c => c.key === sortKey);
     const unit = cat ? cat.unit : '';
-    const icon = cat ? cat.icon : '';
 
     container.innerHTML = items.slice(0, 200).map((item, i) => {
       let displayValue = item[sortKey];
@@ -606,9 +471,13 @@ class YishuvRanker {
         ? `<div class="lb-checkbox ${isSelected ? 'checked' : ''}" onclick="event.stopPropagation(); app.toggleSelect('${item.code}')"></div>`
         : '';
 
+      const isFav = this.isFavorite(item.code);
+      const favBtn = `<button class="fav-star ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); app.toggleFavFromList('${item.code}')" title="${isFav ? 'הסר ממועדפים' : 'הוסף למועדפים'}">${isFav ? '★' : '☆'}</button>`;
+
       return `
         <div class="leaderboard-item ${isSelected ? 'selected' : ''}" onclick="app.showDetail(${origIndex})">
           ${checkbox}
+          ${favBtn}
           <div class="lb-rank">${i + 1}</div>
           <div class="lb-info">
             <div class="lb-name">${item.name}</div>
@@ -627,14 +496,26 @@ class YishuvRanker {
     }
   }
 
+  toggleFavFromList(code) {
+    this.toggleFavorite(code);
+    this.renderLeaderboardList();
+  }
+
   // ==========================================
   // Detail Modal
   // ==========================================
   showDetail(index) {
     if (index < 0 || index >= YISHUVIM.length) return;
     const item = YISHUVIM[index];
+    this._modalItemCode = item.code;
+
     document.getElementById('modal-title').textContent = item.name;
     document.getElementById('modal-subtitle').textContent = `${item.district} · ${item.type}`;
+
+    // Favorite button in modal
+    const isFav = this.isFavorite(item.code);
+    document.getElementById('modal-fav-btn').className = `modal-fav-btn ${isFav ? 'active' : ''}`;
+    document.getElementById('modal-fav-btn').innerHTML = `${isFav ? '★ במועדפים' : '☆ הוסף למועדפים'}`;
 
     const stats = [
       { icon: '👥', val: this.formatNumber(item.population), lbl: 'אוכלוסייה' },
@@ -667,6 +548,17 @@ class YishuvRanker {
     document.getElementById('modal-overlay').classList.add('active');
   }
 
+  toggleModalFavorite() {
+    if (!this._modalItemCode) return;
+    this.toggleFavorite(this._modalItemCode);
+    const isFav = this.isFavorite(this._modalItemCode);
+    document.getElementById('modal-fav-btn').className = `modal-fav-btn ${isFav ? 'active' : ''}`;
+    document.getElementById('modal-fav-btn').innerHTML = `${isFav ? '★ במועדפים' : '☆ הוסף למועדפים'}`;
+    // Refresh list behind modal if visible
+    if (this.currentScreen === 'leaderboard') this.renderLeaderboardList();
+    if (this.currentScreen === 'favorites') this.renderFavorites();
+  }
+
   closeModal() { document.getElementById('modal-overlay').classList.remove('active'); }
 
   // ==========================================
@@ -680,7 +572,6 @@ class YishuvRanker {
   }
 
   selectAllVisible() {
-    // select all currently filtered/visible items
     let items = [...YISHUVIM];
     if (this.leaderboard.district !== 'הכל') items = items.filter(y => y.district === this.leaderboard.district);
     if (this.leaderboard.type !== 'הכל') items = items.filter(y => y.type === this.leaderboard.type);
@@ -761,15 +652,6 @@ class YishuvRanker {
   // Utilities
   // ==========================================
   formatNumber(num) { return (num || 0).toLocaleString('he-IL'); }
-
-  shuffle(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
 }
 
 const app = new YishuvRanker();

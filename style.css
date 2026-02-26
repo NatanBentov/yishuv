@@ -1291,29 +1291,124 @@ body {
 }
 
 /* ==========================================
+   Favorite Star Button (in leaderboard rows)
+   ========================================== */
+.fav-star {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px 6px;
+  line-height: 1;
+  transition: color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.fav-star.active {
+  color: #f5a623;
+}
+
+.fav-star:active {
+  transform: scale(1.3);
+}
+
+/* Favorite badge on home card */
+.fav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5a623;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-right: 4px;
+}
+
+/* Modal favorite button */
+.modal-fav-btn {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+  font-family: 'Heebo', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+  transition: all 0.2s;
+}
+
+.modal-fav-btn.active {
+  background: #fef7e0;
+  color: #d4920a;
+  border-color: #f5a623;
+}
+
+/* Favorites screen */
+.favorites-header {
+  padding: 8px 4px;
+}
+
+.fav-result-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fav-item .lb-info {
+  flex: 1;
+  cursor: pointer;
+}
+
+.export-favs-btn {
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-family: 'Heebo', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  transition: all 0.2s;
+}
+
+.export-favs-btn:active {
+  transform: scale(0.97);
+}
+
+/* ==========================================
    Responsive
    ========================================== */
 @media (max-width: 380px) {
-  .battle-card .city-name {
-    font-size: 1.1rem;
-  }
-  
-  .battle-card {
-    padding: 14px 10px;
-  }
-  
-  .battle-card .stat-row {
-    font-size: 0.78rem;
+  .leaderboard-item {
+    padding: 10px 8px;
   }
 }
 
 @media (min-width: 600px) {
   .screen {
     padding: 20px;
-  }
-  
-  .battle-card .city-name {
-    font-size: 1.5rem;
   }
 }
 

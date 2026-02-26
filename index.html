@@ -40,19 +40,19 @@
     </div>
 
     <div class="mode-cards">
-      <div class="mode-card" id="btn-battle-mode" style="opacity: 0.5; pointer-events: none;">
-        <div class="mode-icon">⚔️</div>
-        <div class="mode-info">
-          <h3>מצב קרב - מי עדיף?</h3>
-          <p>השוו בין שני ישובים בכל פעם ובנו דירוג אישי</p>
-        </div>
-      </div>
-
       <div class="mode-card" id="btn-leaderboard-mode" style="opacity: 0.5; pointer-events: none;">
         <div class="mode-icon">📊</div>
         <div class="mode-info">
           <h3>טבלת ישובים</h3>
           <p>צפו בנתוני כל הישובים, סננו ומיינו לפי קטגוריות</p>
+        </div>
+      </div>
+
+      <div class="mode-card" id="btn-favorites-mode" style="opacity: 0.5; pointer-events: none;">
+        <div class="mode-icon">⭐</div>
+        <div class="mode-info">
+          <h3>מועדפים <span class="fav-badge" id="fav-count-badge" style="display:none">0</span></h3>
+          <p>ישובים ששמרתם לצפייה מהירה</p>
         </div>
       </div>
     </div>
@@ -62,68 +62,12 @@
     </div>
   </div>
 
-  <!-- ==================== Setup Screen ==================== -->
-  <div class="screen" id="screen-setup">
-    <div class="setup-section">
-      <h3>🔢 כמה ישובים?</h3>
-      <div class="count-selector">
-        <div class="count-chip" data-count="8">8</div>
-        <div class="count-chip active" data-count="16">16</div>
-        <div class="count-chip" data-count="32">32</div>
-        <div class="count-chip" data-count="64">64</div>
-      </div>
+  <!-- ==================== Favorites Screen ==================== -->
+  <div class="screen" id="screen-favorites">
+    <div class="favorites-header">
+      <span class="fav-result-count" id="fav-result-count"></span>
     </div>
-
-    <div class="setup-section">
-      <h3>📍 מחוז</h3>
-      <div class="filter-row" id="setup-districts">
-        <span class="filter-chip active" data-value="הכל">הכל</span>
-        <span class="filter-chip" data-value="ירושלים">ירושלים</span>
-        <span class="filter-chip" data-value="תל אביב">תל אביב</span>
-        <span class="filter-chip" data-value="חיפה">חיפה</span>
-        <span class="filter-chip" data-value="מרכז">מרכז</span>
-        <span class="filter-chip" data-value="צפון">צפון</span>
-        <span class="filter-chip" data-value="דרום">דרום</span>
-      </div>
-    </div>
-
-    <div class="setup-section">
-      <h3>🏛️ סוג ישוב</h3>
-      <div class="filter-row" id="setup-types">
-        <span class="filter-chip active" data-value="הכל">הכל</span>
-        <span class="filter-chip" data-value="עיר">ערים</span>
-        <span class="filter-chip" data-value="יישוב">יישובים</span>
-        <span class="filter-chip" data-value="מועצה אזורית">מועצות אזוריות</span>
-      </div>
-    </div>
-
-    <button class="start-battle-btn" id="start-battle">
-      🚀 התחילו לדרג!
-    </button>
-  </div>
-
-  <!-- ==================== Battle Screen ==================== -->
-  <div class="screen" id="screen-battle">
-    <div id="battle-content">
-    </div>
-  </div>
-
-  <!-- ==================== Results Screen ==================== -->
-  <div class="screen" id="screen-results">
-    <div class="results-header">
-      <div class="trophy">🏆</div>
-      <h2>הדירוג שלכם</h2>
-      <p>המנצח: <strong id="winner-name"></strong></p>
-    </div>
-
-    <div class="results-list" id="results-list">
-    </div>
-
-    <div class="results-actions">
-      <button class="btn btn-accent" id="btn-play-again">🔄 שחקו שוב</button>
-      <button class="btn btn-primary" id="btn-share">📤 שתפו</button>
-      <button class="btn btn-secondary" id="btn-home">🏠</button>
-    </div>
+    <div class="favorites-list" id="favorites-list"></div>
   </div>
 
   <!-- ==================== Leaderboard Screen ==================== -->
@@ -174,6 +118,7 @@
     <div class="modal-content">
       <div class="modal-handle"></div>
       <div class="modal-title" id="modal-title"></div>
+      <button class="modal-fav-btn" id="modal-fav-btn" onclick="app.toggleModalFavorite()">☆ הוסף למועדפים</button>
       <div class="modal-subtitle" id="modal-subtitle"></div>
       <div class="modal-stats" id="modal-stats-grid">
       </div>
