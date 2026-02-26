@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>מדרג הישובים 🏘️</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏘️</text></svg>">
+</head>
+<body>
+
+  <!-- ==================== Header ==================== -->
+  <header class="app-header">
+    <div class="header-content">
+      <button class="header-back hidden" id="header-back">→</button>
+      <div class="header-title">
+        <span id="header-title-text">🏘️ מדרג הישובים</span>
+      </div>
+      <div style="width: 36px;"></div>
+    </div>
+  </header>
+
+  <!-- ==================== Loading Bar ==================== -->
+  <div class="loading-bar-container" id="loading-bar">
+    <div class="loading-bar-progress"></div>
+  </div>
+
+  <!-- ==================== Home Screen ==================== -->
+  <div class="screen active" id="screen-home">
+    <div class="home-hero">
+      <span class="emoji">🇮🇱</span>
+      <h2>מדרג הישובים</h2>
+      <p id="hero-subtitle">
+        טוען נתוני יישובים מרשות האוכלוסין...
+      </p>
+      <p id="loading-status"></p>
+    </div>
+
+    <div class="mode-cards">
+      <div class="mode-card" id="btn-battle-mode" style="opacity: 0.5; pointer-events: none;">
+        <div class="mode-icon">⚔️</div>
+        <div class="mode-info">
+          <h3>מצב קרב - מי עדיף?</h3>
+          <p>השוו בין שני ישובים בכל פעם ובנו דירוג אישי</p>
+        </div>
+      </div>
+
+      <div class="mode-card" id="btn-leaderboard-mode" style="opacity: 0.5; pointer-events: none;">
+        <div class="mode-icon">📊</div>
+        <div class="mode-info">
+          <h3>טבלת ישובים</h3>
+          <p>צפו בנתוני כל הישובים, סננו ומיינו לפי קטגוריות</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="data-source">
+      📌 מקור: data.gov.il - רשות האוכלוסין וההגירה · מתעדכן אוטומטית
+    </div>
+  </div>
+
+  <!-- ==================== Setup Screen ==================== -->
+  <div class="screen" id="screen-setup">
+    <div class="setup-section">
+      <h3>🔢 כמה ישובים?</h3>
+      <div class="count-selector">
+        <div class="count-chip" data-count="8">8</div>
+        <div class="count-chip active" data-count="16">16</div>
+        <div class="count-chip" data-count="32">32</div>
+        <div class="count-chip" data-count="64">64</div>
+      </div>
+    </div>
+
+    <div class="setup-section">
+      <h3>📍 מחוז</h3>
+      <div class="filter-row" id="setup-districts">
+        <span class="filter-chip active" data-value="הכל">הכל</span>
+        <span class="filter-chip" data-value="ירושלים">ירושלים</span>
+        <span class="filter-chip" data-value="תל אביב">תל אביב</span>
+        <span class="filter-chip" data-value="חיפה">חיפה</span>
+        <span class="filter-chip" data-value="מרכז">מרכז</span>
+        <span class="filter-chip" data-value="צפון">צפון</span>
+        <span class="filter-chip" data-value="דרום">דרום</span>
+      </div>
+    </div>
+
+    <div class="setup-section">
+      <h3>🏛️ סוג ישוב</h3>
+      <div class="filter-row" id="setup-types">
+        <span class="filter-chip active" data-value="הכל">הכל</span>
+        <span class="filter-chip" data-value="עיר">ערים</span>
+        <span class="filter-chip" data-value="יישוב">יישובים</span>
+        <span class="filter-chip" data-value="מועצה אזורית">מועצות אזוריות</span>
+      </div>
+    </div>
+
+    <button class="start-battle-btn" id="start-battle">
+      🚀 התחילו לדרג!
+    </button>
+  </div>
+
+  <!-- ==================== Battle Screen ==================== -->
+  <div class="screen" id="screen-battle">
+    <div id="battle-content">
+    </div>
+  </div>
+
+  <!-- ==================== Results Screen ==================== -->
+  <div class="screen" id="screen-results">
+    <div class="results-header">
+      <div class="trophy">🏆</div>
+      <h2>הדירוג שלכם</h2>
+      <p>המנצח: <strong id="winner-name"></strong></p>
+    </div>
+
+    <div class="results-list" id="results-list">
+    </div>
+
+    <div class="results-actions">
+      <button class="btn btn-accent" id="btn-play-again">🔄 שחקו שוב</button>
+      <button class="btn btn-primary" id="btn-share">📤 שתפו</button>
+      <button class="btn btn-secondary" id="btn-home">🏠</button>
+    </div>
+  </div>
+
+  <!-- ==================== Leaderboard Screen ==================== -->
+  <div class="screen" id="screen-leaderboard">
+    <div class="leaderboard-controls">
+      <input type="text" class="search-box" id="lb-search" placeholder="🔍 חפשו ישוב...">
+
+      <div class="filter-row" id="lb-districts"></div>
+      <div class="filter-row" id="lb-types"></div>
+
+      <div class="sort-row" id="lb-sort-row">
+        <!-- Generated dynamically from RANKING_CATEGORIES -->
+      </div>
+
+      <!-- Filter toggle & panel -->
+      <div class="filter-bar">
+        <button class="filter-toggle-btn" id="toggle-filters-btn">
+          🔧 סינון מתקדם <span class="filter-count-badge" id="filter-count-badge" style="display:none">0</span>
+        </button>
+        <button class="clear-filters-btn" id="clear-filters-btn">✕ נקה סינון</button>
+        <button class="select-toggle-btn" id="toggle-select-btn">☑️ בחירה לייצוא</button>
+        <span class="lb-result-count" id="lb-result-count"></span>
+      </div>
+
+      <div class="filters-panel" id="filters-panel">
+        <div class="filters-content" id="filters-content">
+          <!-- Generated dynamically from FILTER_FIELDS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="leaderboard-list" id="lb-list">
+    </div>
+
+    <!-- Export bar -->
+    <div class="export-bar" id="export-bar">
+      <div class="export-bar-info">
+        <span>נבחרו <strong id="export-count">0</strong> ישובים</span>
+        <button class="export-bar-link" id="select-all-btn">בחר הכל</button>
+        <button class="export-bar-link" id="clear-selection-btn">נקה</button>
+      </div>
+      <button class="export-csv-btn" id="export-csv-btn" disabled>📥 ייצוא ל-Excel</button>
+    </div>
+  </div>
+
+  <!-- ==================== Detail Modal ==================== -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-subtitle" id="modal-subtitle"></div>
+      <div class="modal-stats" id="modal-stats-grid">
+      </div>
+      <button class="modal-close" id="modal-close-btn">סגור</button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
